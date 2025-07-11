@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usama Attack Panel</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    .container { display: flex; flex-direction: column; gap: 20px; }
+    .card { border: 1px solid #ddd; padding: 20px; border-radius: 5px; }
+    button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    input { padding: 10px; width: 100%; box-sizing: border-box; }
+    .error { color: red; }
+    .success { color: green; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="login" class="card">
+      <h2>Login</h2>
+      <input type="text" id="username" placeholder="Username">
+      <input type="password" id="password" placeholder="Password">
+      <button onclick="login()">Login</button>
+      <p id="login-error" class="error"></p>
+    </div>
+
+    <div id="pairing" class="card" style="display: none;">
+      <h2>WhatsApp Pairing</h2>
+      <input type="text" id="whatsapp-number" placeholder="Your WhatsApp number">
+      <button onclick="pair()">Generate Pairing Code</button>
+      <div id="pairing-result" style="margin-top: 10px;"></div>
+    </div>
+
+    <div id="attack" class="card" style="display: none;">
+      <h2>Attack Panel</h2>
+      <input type="text" id="target-number" placeholder="Target WhatsApp number">
+      <div style="margin: 10px 0;">
+        <label><input type="radio" name="attack-type" value="fuckinvi" checked> Fuckinvi</label>
+        <label><input type="radio" name="attack-type" value="fuckios"> Fuckios</label>
+      </div>
+      <button onclick="executeAttack()">Execute Attack</button>
+      <div id="attack-result" style="margin-top: 10px;"></div>
+    </div>
+  </div>
+
+  <script>
+    let token = '';
+    
+    async function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          token = data.token;
+          document.getElementById('login').style.display = 'none';
+          document.getElementById('pairing').style.display = 'block';
+        } else {
+          document.getElementById('login-error').textContent = data.message;
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+      }
+    }
+    
+    async function pair() {
+      const number = document.getElementById('whatsapp-number').value;
+      
+      try {
+        const response = await fetch('/api/whatsapp/pair', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': token
+          },
+          body: JSON.stringify({ number })
+        });
+        
+        const data = await response.json();
+        if (data.code) {
+          document.getElementById('pairing-result').innerHTML = `
+            <p>Pairing code: <strong>${data.code}</strong></p>
+            <p>Send this code to your WhatsApp: <a href="${data.link}" target="_blank">Click here</a></p>
+            <p>Waiting for connection...</p>
+          `;
+          
+          // Start checking connection status
+          checkStatus(data.code);
+        }
+      } catch (error) {
+        console.error('Pairing error:', error);
+      }
+    }
+    
+    async function checkStatus(code) {
+      try {
+        const response = await fetch(`/api/whatsapp/status/${code}`, {
+          headers: { 'Authorization': token }
+        });
+        
+        const data = await response.json();
+        if (data.status === 'connected') {
+          document.getElementById('pairing-result').innerHTML += `
+            <p class="success">Connected to WhatsApp!</p>
+          `;
+          document.getElementById('attack').style.display = 'block';
+        } else {
+          setTimeout(() => checkStatus(code), 2000);
+        }
+      } catch (error) {
+        console.error('Status check error:', error);
+      }
+    }
+    
+    async function executeAttack() {
+      const target = document.getElementById('target-number').value;
+      const attackType = document.querySelector('input[name="attack-type"]:checked').value;
+      const code = document.getElementById('pairing-result').textContent.match(/Pairing code: (\d+)/)[1];
+      
+      try {
+        const response = await fetch('/api/attack/execute', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': token
+          },
+          body: JSON.stringify({ code, target, attackType })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          document.getElementById('attack-result').innerHTML = `
+            <p class="success">Attack successful on ${data.result.target}</p>
+          `;
+        } else {
+          document.getElementById('attack-result').innerHTML = `
+            <p class="error">Error: ${data.error}</p>
+          `;
+        }
+      } catch (error) {
+        console.error('Attack error:', error);
+      }
+    }
+  </script>
+</body>
+  </html>
