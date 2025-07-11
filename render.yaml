@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: usama-attack
+    runtime: node
+    buildCommand: npm install
+    startCommand: node app.js
+    envVars:
+      - key: JWT_SECRET
+        value: Usama@960Cr4sh!S3cr3tK3y#2024@Wh4tsApp
+      - key: PORT
+        value: 10000 # Render uses dynamic ports
